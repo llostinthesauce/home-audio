@@ -1,0 +1,6 @@
+mutagen>=1.47
+requests>=2.32
+rapidfuzz>=3.0
+pydub>=0.25
+spotipy>=2.24
+python-dotenv>=1.0

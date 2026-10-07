@@ -60,3 +60,4 @@ personal/
 
 # Loudness reports (desktop paths)
 *Loudness_Report.csv
+!requirements.txt
