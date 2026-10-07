@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Sonos Control</title>
+<style>
+/* ============================================================
+   CSS Custom Properties
+   ============================================================ */
+:root {
+  --bg-primary: #0a0a1a;
+  --bg-secondary: #0f0f2a;
+  --bg-card: rgba(255, 255, 255, 0.04);
+  --bg-card-hover: rgba(255, 255, 255, 0.07);
+  --bg-glass: rgba(255, 255, 255, 0.06);
+  --border-glass: rgba(255, 255, 255, 0.1);
+  --border-glow: rgba(139, 92, 246, 0.4);
+
+  --text-primary: #f0f0f5;
+  --text-secondary: rgba(240, 240, 245, 0.65);
+  --text-muted: rgba(240, 240, 245, 0.4);
+
+  --accent-purple: #8b5cf6;
+  --accent-blue: #3b82f6;
+  --accent-teal: #14b8a6;
+  --accent-green: #22c55e;
+  --accent-red: #ef4444;
+  --accent-orange: #f59e0b;
+
+  --gradient-accent: linear-gradient(135deg, var(--accent-purple), var(--accent-blue), var(--accent-teal));
+  --gradient-bg: linear-gradient(160deg, #0a0a1a 0%, #1a0a2e 30%, #0a1628 60%, #0a0a1a 100%);
+  --gradient-preset-border: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(59, 130, 246, 0.3), rgba(20, 184, 166, 0.3));
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 20px rgba(139, 92, 246, 0.25), 0 0 40px rgba(139, 92, 246, 0.1);
+
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+  --transition-slow: 400ms ease;
+
+  --slider-track-h: 6px;
+  --slider-thumb-size: 24px;
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ============================================================
+   Reset & Base
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color-scheme: dark;
+}
+
+body {
+  background: var(--gradient-bg);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  min-height: 100dvh;
+  padding: var(--safe-top) 0 var(--safe-bottom) 0;
+  overflow-x: hidden;
+}
+
+/* Ambient background blobs */
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.15;
+  pointer-events: none;
+  z-index: 0;
+}
+body::before {
+  width: 500px; height: 500px;
+  background: var(--accent-purple);
+  top: -150px; right: -100px;
+}
+body::after {
+  width: 400px; height: 400px;
+  background: var(--accent-teal);
+  bottom: -100px; left: -100px;
+}
+
+/* ============================================================
+   Layout
+   ============================================================ */
+.app {
+  position: relative;
+  z-index: 1;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 16px 16px 32px;
+}
+
+@media (min-width: 600px) {
+  .app { padding: 24px 24px 48px; }
+}
+
+/* ============================================================
+   Status Bar
+   ============================================================ */
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  margin-bottom: 24px;
+  transition: border-color var(--transition-base);
+}
+
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent-orange);
+  flex-shrink: 0;
+  transition: background var(--transition-base);
+}
+.status-dot.connected { background: var(--accent-green); }
+.status-dot.error { background: var(--accent-red); }
+
+.status-dot.connected {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(34, 197, 94, 0); }
+}
+
+.status-text {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.now-playing {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+
+/* ============================================================
+   Section Headers
+   ============================================================ */
+.section-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  padding-left: 4px;
+}
+
+/* ============================================================
+   Preset Grid
+   ============================================================ */
+.presets-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+/* Gradient border trick: outer wrapper provides the gradient border */
+.preset-card {
+  position: relative;
+  border-radius: var(--radius-lg);
+  background: var(--gradient-preset-border);
+  padding: 1px;
+  cursor: pointer;
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.preset-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.preset-card:active {
+  transform: scale(0.97);
+}
+
+.preset-card-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 12px;
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: calc(var(--radius-lg) - 1px);
+  text-align: center;
+  min-height: 120px;
+  transition: background var(--transition-base);
+}
+
+.preset-card[data-preset-id="max"] {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, #fbbf24, #f97316);
+}
+.preset-card[data-preset-id="max"] .preset-card-inner {
+  flex-direction: row;
+  min-height: 76px;
+  padding: 16px 12px;
+  background: rgba(65, 31, 14, .94);
+}
+.preset-card[data-preset-id="max"] .preset-desc { color: #fde68a; }
+.preset-card[data-preset-id="max"].active { box-shadow: 0 0 0 2px #fbbf24; }
+
+.preset-card:hover .preset-card-inner {
+  background: var(--bg-card-hover);
+}
+
+.preset-icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.preset-name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.preset-desc {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  line-height: 1.3;
+}
+
+/* Active preset glow */
+.preset-card.active {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.6), rgba(59, 130, 246, 0.6), rgba(20, 184, 166, 0.6));
+  box-shadow: var(--shadow-glow);
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.25), 0 0 40px rgba(139, 92, 246, 0.1); }
+  50% { box-shadow: 0 0 30px rgba(139, 92, 246, 0.35), 0 0 60px rgba(139, 92, 246, 0.15); }
+}
+
+.preset-card.active .preset-card-inner {
+  background: rgba(10, 10, 26, 0.7);
+}
+
+/* Loading / success states on preset cards */
+.preset-card .state-overlay {
+  position: absolute;
+  inset: 1px;
+  border-radius: calc(var(--radius-lg) - 1px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 26, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-fast);
+  z-index: 2;
+}
+.preset-card .state-overlay.visible {
+  opacity: 1;
+}
+
+.spinner {
+  width: 28px; height: 28px;
+  border: 3px solid rgba(255,255,255,0.15);
+  border-top-color: var(--accent-purple);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.checkmark {
+  width: 32px; height: 32px;
+  color: var(--accent-green);
+  animation: check-pop 0.4s ease;
+}
+@keyframes check-pop {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ============================================================
+   Controls Section (collapsible)
+   ============================================================ */
+.controls-section {
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.controls-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.controls-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.controls-header h2 {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.controls-chevron {
+  width: 20px; height: 20px;
+  color: var(--text-muted);
+  transition: transform var(--transition-base);
+}
+.controls-section.open .controls-chevron {
+  transform: rotate(180deg);
+}
+
+.controls-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--transition-slow);
+}
+.controls-section.open .controls-body {
+  grid-template-rows: 1fr;
+}
+.controls-body-inner {
+  overflow: hidden;
+}
+
+.controls-content {
+  padding: 0 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ============================================================
+   Slider Control
+   ============================================================ */
+.slider-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.slider-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.slider-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.slider-value {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 36px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Custom range slider */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: var(--slider-track-h);
+  background: transparent;
+  cursor: pointer;
+  margin: 8px 0;
+}
+
+/* Track */
+input[type="range"]::-webkit-slider-runnable-track {
+  height: var(--slider-track-h);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+}
+input[type="range"]::-moz-range-track {
+  height: var(--slider-track-h);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+}
+
+/* Thumb */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: var(--slider-thumb-size);
+  height: var(--slider-thumb-size);
+  border-radius: 50%;
+  background: var(--text-primary);
+  border: 3px solid var(--accent-purple);
+  margin-top: calc((var(--slider-track-h) - var(--slider-thumb-size)) / 2);
+  box-shadow: 0 0 8px rgba(139, 92, 246, 0.4);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+input[type="range"]::-moz-range-thumb {
+  width: var(--slider-thumb-size);
+  height: var(--slider-thumb-size);
+  border-radius: 50%;
+  background: var(--text-primary);
+  border: 3px solid var(--accent-purple);
+  box-shadow: 0 0 8px rgba(139, 92, 246, 0.4);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+input[type="range"]:active::-webkit-slider-thumb {
+  transform: scale(1.2);
+  box-shadow: 0 0 16px rgba(139, 92, 246, 0.6);
+}
+input[type="range"]:active::-moz-range-thumb {
+  transform: scale(1.2);
+  box-shadow: 0 0 16px rgba(139, 92, 246, 0.6);
+}
+
+/* Progress fill via inline gradient background on track */
+input[type="range"].has-fill::-webkit-slider-runnable-track {
+  background: linear-gradient(to right,
+    var(--accent-purple) 0%,
+    var(--accent-purple) var(--fill-percent, 50%),
+    rgba(255, 255, 255, 0.1) var(--fill-percent, 50%),
+    rgba(255, 255, 255, 0.1) 100%
+  );
+}
+input[type="range"].has-fill::-moz-range-progress {
+  background: var(--accent-purple);
+  height: var(--slider-track-h);
+  border-radius: 3px;
+}
+
+/* ============================================================
+   Toggle Switch
+   ============================================================ */
+.toggle-group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.toggle-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.toggle-switch {
+  position: relative;
+  width: 48px;
+  height: 28px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.toggle-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0; height: 0;
+}
+.toggle-track {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  transition: background var(--transition-base);
+}
+.toggle-switch input:checked + .toggle-track {
+  background: var(--accent-purple);
+}
+.toggle-knob {
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 22px; height: 22px;
+  background: var(--text-primary);
+  border-radius: 50%;
+  transition: transform var(--transition-base);
+  box-shadow: var(--shadow-sm);
+}
+.toggle-switch input:checked ~ .toggle-knob {
+  transform: translateX(20px);
+}
+
+/* ============================================================
+   Divider
+   ============================================================ */
+.controls-divider {
+  height: 1px;
+  background: var(--border-glass);
+  margin: 4px 0;
+}
+
+/* ============================================================
+   Toast Notifications
+   ============================================================ */
+.toast-container {
+  position: fixed;
+  top: calc(16px + var(--safe-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+  width: calc(100% - 32px);
+  max-width: 400px;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: rgba(30, 30, 50, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  animation: toast-in 0.35s ease;
+}
+.toast.removing {
+  animation: toast-out 0.3s ease forwards;
+}
+
+.toast.error { border-color: rgba(239, 68, 68, 0.3); }
+.toast.success { border-color: rgba(34, 197, 94, 0.3); }
+
+.toast-icon { font-size: 1.1rem; flex-shrink: 0; }
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes toast-out {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-12px); }
+}
+
+/* ============================================================
+   Footer
+   ============================================================ */
+.app-footer {
+  text-align: center;
+  padding: 16px 0;
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+}
+.app-footer a {
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+.app-footer a:hover { color: var(--text-secondary); }
+
+/* ============================================================
+   Utility
+   ============================================================ */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Custom Preset Tweaks */
+.section-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.section-title-row .section-title {
+  margin-bottom: 0;
+}
+.reset-presets-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+  transition: color var(--transition-fast);
+  padding: 4px 8px;
+}
+.reset-presets-btn:hover {
+  color: var(--accent-red);
+}
+.preset-settings-preview {
+  margin-top: 6px;
+  font-size: 0.625rem;
+  font-family: monospace;
+  color: var(--text-secondary);
+  background: rgba(0, 0, 0, 0.25);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.save-current-preset {
+  margin-top: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 5;
+}
+.save-current-preset:hover {
+  background: rgba(139, 92, 246, 0.2);
+  border-color: var(--accent-purple);
+  color: var(--text-primary);
+}
+.save-current-preset:active {
+  transform: scale(0.95);
+}
+
+
+
+.preset-card { border: 0; font: inherit; color: inherit; width: 100%; text-align: center; }
+.preset-card:disabled { cursor: default; opacity: .6; }
+.controls-header { border: 0; background: transparent; color: inherit; font: inherit; width: 100%; text-align: left; min-height: 56px; }
+.controls-header h2 { font-size: .9375rem; }
+.controls-body[hidden] { display: none; }
+.basic-controls { padding: 20px; }
+.advanced-group { display: flex; flex-direction: column; gap: 20px; padding-top: 12px; border-top: 1px solid var(--border-glass); }
+.advanced-group h3 { color: var(--text-primary); font-size: .9375rem; font-weight: 600; }
+.control-note { color: var(--text-secondary); font-size: .8125rem; line-height: 1.5; }
+select, .advanced-button { min-height: 44px; border-radius: var(--radius-sm); border: 1px solid var(--border-glass); background: #17172b; color: var(--text-primary); padding: 10px 12px; font: inherit; font-size: .875rem; width: 100%; }
+.advanced-button { cursor: pointer; text-align: left; }
+input:disabled, select:disabled, .advanced-button:disabled { opacity: .5; cursor: default; }
+.toggle-switch { min-height: 44px; display: flex; align-items: center; }
+.toggle-track { top: 9px; bottom: 9px; }
+.toggle-knob { top: 12px; }
+input[type="range"] { height: 32px; margin: 0; }
+:focus-visible { outline: 2px solid var(--accent-teal); outline-offset: 4px; }
+.toggle-switch:focus-within { outline: 2px solid var(--accent-teal); outline-offset: 4px; border-radius: 14px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <!-- Status Bar -->
+  <div class="status-bar" id="statusBar">
+    <span class="status-dot" id="statusDot"></span>
+    <span class="status-text" id="statusText">Discovering speakers…</span>
+    <span class="now-playing" id="nowPlaying"></span>
+  </div>
+
+  <!-- Presets -->
+  <div class="section-title">Quick Presets</div>
+  <div class="presets-grid" id="presetsGrid">
+    <!-- Rendered by JS -->
+  </div>
+
+  <div class="controls-section"><div class="controls-content basic-controls" id="basicControls"></div></div>
+
+  <!-- Advanced sound: always collapsed on opening the bookmark. -->
+  <div class="controls-section" id="controlsSection">
+    <button type="button" class="controls-header" id="controlsToggle" aria-expanded="false" aria-controls="controlsBody">
+      <div class="controls-header-left">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-muted)">
+          <line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line>
+          <line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line>
+          <line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line>
+          <line x1="17" y1="16" x2="23" y2="16"></line>
+        </svg>
+        <h2>Advanced sound</h2>
+      </div>
+      <svg class="controls-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 9 12 15 18 9"></polyline>
+      </svg>
+    </button>
+    <div class="controls-body" id="controlsBody" hidden>
+      <div class="controls-body-inner">
+        <div class="controls-content" id="controlsContent">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- Footer -->
+  <div class="app-footer">
+    Sonos Control · <span id="footerRoom">Living Room</span>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+/* MAX explicitly sets volume 100. Everyday recipes leave master volume alone. */
+const DEFAULT_PRESETS = [
+  { id: 'normal', icon: '📺', name: 'Normal', description: 'Clear, soundbar-led listening',
+    settings: {subGain:0,bass:0,treble:0,surroundTvLevel:-6,surroundMusicLevel:-6,
+      loudness:true,subEnabled:true,surroundEnabled:true,surroundMode:0,heightLevel:0,
+      nightMode:false,speechLevel:2,speechEnabled:true} },
+  { id: 'musicmovies', icon: '🎬', name: 'Music & Movies', description: 'Big bass · full surround',
+    settings: {subGain:15,bass:8,treble:4,surroundTvLevel:15,surroundMusicLevel:15,
+      loudness:true,subEnabled:true,surroundEnabled:true,surroundMode:1,heightLevel:10,
+      nightMode:false,speechLevel:1,speechEnabled:false} },
+  { id: 'max', icon: '⚠️', name: 'MAX', description: 'Volume 100 · all levels max', fixed:true,
+    settings: {subGain:15,bass:10,treble:10,surroundTvLevel:15,surroundMusicLevel:15,
+      loudness:true,subEnabled:true,surroundEnabled:true,surroundMode:1,heightLevel:10,
+      nightMode:false,speechLevel:4,speechEnabled:true,volume:100} },
+];
+// Room to control: ?room=Kitchen, default "Living Room".
+const TARGET_ROOM = (typeof location !== 'undefined' && new URLSearchParams(location.search).get('room')) || 'Living Room';
+const STORAGE_KEY = 'sonos_custom_presets_v4';
+const PRESET_REVISION = '20261006-impact';
+const PRESET_REVISION_KEY = 'sonos_preset_revision';
+const PRESET_KEYS = ['subGain','bass','treble','surroundTvLevel','surroundMusicLevel',
+  'loudness','subEnabled','surroundEnabled','surroundMode','heightLevel','nightMode','speechEnabled','speechLevel'];
+const LIMITS = {volume:[0,100],bass:[-10,10],treble:[-10,10],subGain:[-15,15],
+  surroundTvLevel:[-15,15],surroundMusicLevel:[-15,15],heightLevel:[-10,10],
+  surroundMode:[0,1],speechLevel:[0,4],audioDelay:[0,5],subPolarity:[0,1]};
+const TOGGLES = ['mute','loudness','subEnabled','surroundEnabled','nightMode','speechEnabled','trueplay'];
+const LABELS = {volume:'Volume',mute:'Mute',bass:'Bass',treble:'Treble',loudness:'Loudness',
+  subGain:'Sub level',subEnabled:'Subs on',subPolarity:'Sub phase',
+  surroundTvLevel:'Surround level · TV',surroundMusicLevel:'Surround level · Music',
+  surroundEnabled:'Surrounds on',surroundMode:'Music playback',heightLevel:'Height level',
+  nightMode:'Night sound',speechEnabled:'Speech enhancement',speechLevel:'Speech strength',
+  audioDelay:'TV dialogue sync',trueplay:'Trueplay tuning'};
+let PRESETS = [];
+function readStorage(key) { try { return localStorage.getItem(key); } catch (_) { return null; } }
+function writeStorage(key,value) { try { localStorage.setItem(key,value); return true; } catch (_) { return false; } }
+function removeStorage(key) { try { localStorage.removeItem(key); } catch (_) {} }
+function validSetting(key,value) {
+  if (TOGGLES.includes(key)) return typeof value === 'boolean';
+  const range = LIMITS[key];
+  return range && Number.isInteger(value) && value >= range[0] && value <= range[1];
+}
+function loadPresets() {
+  PRESETS = JSON.parse(JSON.stringify(DEFAULT_PRESETS));
+  const stored = readStorage(STORAGE_KEY);
+  // When the built-in recipes change, apply them once per device, backing up older custom recipes.
+  // Later edits survive refreshes because the revision is separate from preset data.
+  if (readStorage(PRESET_REVISION_KEY) !== PRESET_REVISION) {
+    const backupKey = STORAGE_KEY + '_backup_20261006_impact';
+    if (stored && !readStorage(backupKey) && !writeStorage(backupKey,stored)) return;
+    if (stored && !writeStorage(STORAGE_KEY,JSON.stringify(PRESETS))) return;
+    writeStorage(PRESET_REVISION_KEY,PRESET_REVISION);
+    removeStorage('sonos_active_preset');
+    return;
+  }
+  if (!stored) return;
+  try {
+    const parsed = JSON.parse(stored);
+    if (!Array.isArray(parsed)) return;
+    PRESETS.forEach(preset => {
+      if (preset.fixed) return;
+      const saved = parsed.find(p => p && p.id === preset.id && p.settings && typeof p.settings === 'object');
+      if (!saved) return;
+      const settings = Object.assign({}, saved.settings);
+      // Repair the old Save Current alias, preserving the original browser record.
+      if (validSetting('surroundMusicLevel',settings.musicSurroundLevel)) {
+        if (!readStorage(STORAGE_KEY + '_backup_20261006')) writeStorage(STORAGE_KEY + '_backup_20261006',stored);
+        settings.surroundMusicLevel = settings.musicSurroundLevel;
+      }
+      PRESET_KEYS.forEach(key => { if (validSetting(key,settings[key])) preset.settings[key] = settings[key]; });
+    });
+  } catch (_) { /* Defaults keep the preset buttons usable. */ }
+}
+function savePresetsToStorage() {
+  if (!writeStorage(STORAGE_KEY,JSON.stringify(PRESETS))) throw new Error('Safari could not save this preset');
+}
+loadPresets();
+const state = {roomName:null,roomNameEncoded:null,uuid:null,connected:false,
+  activePreset:readStorage('sonos_active_preset'),applyingPreset:null,controlsOpen:false,
+  current:{},controls:{},controlSignature:'',pollTimer:null,debounceTimers:{},pendingValues:{},
+  editRevision:0,writeCount:0,writeQueue:Promise.resolve(),pollGeneration:0,saving:false};
+const dom = {statusDot:document.getElementById('statusDot'),statusText:document.getElementById('statusText'),
+  nowPlaying:document.getElementById('nowPlaying'),presetsGrid:document.getElementById('presetsGrid'),
+  controlsSection:document.getElementById('controlsSection'),controlsToggle:document.getElementById('controlsToggle'),
+  controlsBody:document.getElementById('controlsBody'),controlsContent:document.getElementById('controlsContent'),
+  basicControls:document.getElementById('basicControls'),toastContainer:document.getElementById('toastContainer')};
+async function apiCall(path) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(),12000);
+  try {
+    const response = await fetch(path,{cache:'no-store',signal:controller.signal});
+    const data = await response.json();
+    if (!response.ok || data.status === 'error') throw new Error(data.error || 'Speaker request failed');
+    return data;
+  } catch (err) {
+    if (err.name === 'AbortError') throw new Error('Speaker request timed out');
+    throw err;
+  } finally { clearTimeout(timeout); }
+}
+function roomPath(action) {
+  if (!state.roomNameEncoded) throw new Error(TARGET_ROOM + ' is not available');
+  return '/' + state.roomNameEncoded + '/' + action;
+}
+function findTarget(zones) {
+  if (!Array.isArray(zones)) return null;
+  for (const zone of zones) {
+    const members = zone.members || [];
+    const player = members.find(p => p.roomName === TARGET_ROOM) ||
+      (zone.coordinator && zone.coordinator.roomName === TARGET_ROOM ? zone.coordinator : null);
+    if (player) return {zone,player};
+  }
+  return null;
+}
+async function discoverRoom() { return pollState(); }
+async function pollState() {
+  if (state.writeCount || state.applyingPreset || Object.keys(state.pendingValues).length) return;
+  const generation = ++state.pollGeneration;
+  try {
+    const target = findTarget(await apiCall('/zones'));
+    if (!target) throw new Error(TARGET_ROOM + ' is unavailable');
+    const path = '/' + encodeURIComponent(target.player.roomName) + '/mix';
+    const mix = await apiCall(path);
+    if (generation !== state.pollGeneration || state.writeCount || state.applyingPreset) return;
+    if (!mix.values || !mix.controls || (mix.uuid && target.player.uuid && mix.uuid !== target.player.uuid))
+      throw new Error('Speaker identity could not be verified');
+    state.roomName = target.player.roomName;
+    state.roomNameEncoded = encodeURIComponent(state.roomName);
+    state.uuid = target.player.uuid;
+    state.connected = true;
+    updateFromMix(mix);
+    const track = ((target.zone.coordinator || target.player).state || {}).currentTrack || {};
+    dom.nowPlaying.textContent = [track.artist,track.title].filter(Boolean).join(' — ');
+    updateStatus();
+    return true;
+  } catch (err) {
+    if (generation !== state.pollGeneration) return false;
+    state.connected = false;
+    updateStatus(err.message);
+    return false;
+  }
+}
+function updateFromMix(mix) {
+  Object.keys(mix.values || {}).forEach(key => { if (validSetting(key,mix.values[key])) state.current[key] = mix.values[key]; });
+  const signature = JSON.stringify(Object.keys(mix.controls || {}).sort().map(key => [key,mix.controls[key]]));
+  state.controls = mix.controls || {};
+  if (signature !== state.controlSignature) { state.controlSignature = signature; renderControls(); }
+  if (state.activePreset && !state.applyingPreset) {
+    const preset = PRESETS.find(p => p.id === state.activePreset);
+    if (!preset || !Object.keys(preset.settings).every(key =>
+      Object.prototype.hasOwnProperty.call(mix.values || {},key) && mix.values[key] === preset.settings[key])) clearActivePreset();
+  }
+  updateControlValues();
+}
+function startPolling() {
+  stopPolling();
+  state.pollTimer = setTimeout(async () => {
+    await pollState();
+    if (!document.hidden) startPolling();
+  },state.connected ? 30000 : 5000);
+}
+function stopPolling() { if (state.pollTimer) clearTimeout(state.pollTimer); state.pollTimer = null; }
+function updateStatus(error) {
+  dom.statusDot.className = 'status-dot ' + (state.connected ? 'connected' : 'error');
+  dom.statusText.textContent = state.connected ? 'Connected to ' + state.roomName : (error || 'Connecting to ' + TARGET_ROOM + '…');
+  dom.presetsGrid.querySelectorAll('.preset-card').forEach(button => { button.disabled = !state.connected || !!state.applyingPreset || state.saving; });
+  [dom.basicControls,dom.controlsContent].forEach(container => container.querySelectorAll('input,select,button').forEach(el => {
+    el.disabled = !state.connected || !!state.applyingPreset || state.saving;
+  }));
+}
+function renderPresets() {
+  dom.presetsGrid.innerHTML = PRESETS.map(preset =>
+    '<button type="button" class="preset-card' + (state.activePreset === preset.id ? ' active' : '') +
+    '" data-preset-id="' + preset.id + '" aria-label="Apply ' + preset.name + (preset.id === 'max' ? ', volume 100' : '') + '">' +
+    '<span class="preset-card-inner"><span class="preset-icon">' + preset.icon + '</span>' +
+    '<span class="preset-name">' + preset.name + '</span><span class="preset-desc">' + preset.description + '</span></span></button>'
+  ).join('');
+  dom.presetsGrid.querySelectorAll('.preset-card').forEach(button => button.addEventListener('click',() => applyPreset(button.dataset.presetId)));
+  updateStatus();
+}
+function clearActivePreset() {
+  state.activePreset = null; removeStorage('sonos_active_preset');
+  dom.presetsGrid.querySelectorAll('.preset-card').forEach(button => button.classList.remove('active'));
+}
+function cancelPendingEdits() {
+  Object.values(state.debounceTimers).forEach(clearTimeout);
+  state.debounceTimers = {}; state.pendingValues = {};
+}
+function queueWrite(work) {
+  ++state.writeCount; ++state.pollGeneration;
+  const task = state.writeQueue.catch(() => {}).then(work);
+  state.writeQueue = task;
+  return task.finally(() => { --state.writeCount; });
+}
+async function applyPreset(presetId) {
+  if (!state.connected || state.applyingPreset || state.saving) return;
+  const preset = PRESETS.find(p => p.id === presetId);
+  if (!preset) return;
+  ++state.editRevision; cancelPendingEdits(); state.applyingPreset = presetId; updateStatus();
+  try {
+    await queueWrite(async () => {
+      const before = await apiCall(roomPath('mix'));
+      // Raising volume happens only after every requested mix setting succeeds.
+      const keys = Object.keys(preset.settings).filter(key => key !== 'volume');
+      if (Object.prototype.hasOwnProperty.call(preset.settings,'volume')) keys.push('volume');
+      if (keys.some(key => !before.controls[key])) throw new Error('This preset needs a sound control that is unavailable');
+      let result = before;
+      for (const key of keys) result = await apiCall(roomPath('mix/' + key + '/' + String(preset.settings[key])));
+      updateFromMix(result);
+      if (!keys.every(key => result.values[key] === preset.settings[key])) throw new Error('Speaker settings did not match the preset');
+      state.activePreset = presetId; writeStorage('sonos_active_preset',presetId);
+      renderPresets(); showToast(preset.name + ' applied','success');
+    });
+  } catch (err) {
+    clearActivePreset(); showToast('Preset could not finish: ' + err.message,'error');
+    // A preset is several device writes; refresh even after partial application.
+    try { updateFromMix(await apiCall(roomPath('mix'))); } catch (_) { state.connected = false; }
+  } finally { state.applyingPreset = null; updateStatus(); }
+}
+async function saveCurrentToPreset(presetId) {
+  if (!state.connected || state.applyingPreset || state.saving) return;
+  const preset = PRESETS.find(p => p.id === presetId); if (!preset || preset.fixed) return;
+  state.saving = true; updateStatus();
+  try {
+    if (state.writeCount) await state.writeQueue;
+    const pending = Object.assign({},state.pendingValues); cancelPendingEdits();
+    for (const key of Object.keys(pending)) {
+      if (!await applySlider(key,pending[key])) throw new Error('The pending sound change could not be applied');
+    }
+    const mix = await apiCall(roomPath('mix'));
+    updateFromMix(mix);
+    const settings = {};
+    PRESET_KEYS.forEach(key => { if (mix.controls[key] && validSetting(key,mix.values[key])) settings[key] = mix.values[key]; });
+    if (!Object.keys(DEFAULT_PRESETS[0].settings).every(key => Object.prototype.hasOwnProperty.call(settings,key)))
+      throw new Error('Could not read all preset settings');
+    const previous = preset.settings;
+    preset.settings = settings;
+    try { savePresetsToStorage(); } catch (err) { preset.settings = previous; throw err; }
+    clearActivePreset(); renderPresets(); showToast('Saved ' + preset.name + ' on this phone','success');
+  } catch (err) { showToast('Could not save: ' + err.message,'error'); }
+  finally { state.saving = false; updateStatus(); }
+}
+function optionLabel(key,value) {
+  if (key === 'surroundMode') return value === 1 ? 'Full' : 'Ambient';
+  if (key === 'speechLevel') return ['Off','Low','Medium','High','Max'][value];
+  if (key === 'audioDelay') return value === 0 ? 'No added delay' : 'Delay ' + value;
+  if (key === 'subPolarity') return value === 0 ? '0°' : '180°';
+  return String(value);
+}
+function buildControl(key) {
+  const control = state.controls[key]; if (!control) return '';
+  const value = state.current[key]; const label = LABELS[key] || key;
+  if (control.type === 'toggle') return '<div class="toggle-group"><label class="toggle-label" for="ctrl-' + key + '">' + label +
+    '</label><label class="toggle-switch"><input id="ctrl-' + key + '" type="checkbox" data-control="' + key + '" ' +
+    (value ? 'checked' : '') + ' aria-label="' + label + '"><span class="toggle-track"></span><span class="toggle-knob"></span></label></div>';
+  if (control.type === 'select') {
+    let values = control.options ? control.options.map(option => typeof option === 'object' ? option.value : option) : [];
+    if (!values.length) for (let i = control.min; i <= control.max; i++) values.push(i);
+    return '<div class="slider-group"><label class="slider-label" for="ctrl-' + key + '">' + label +
+      '</label><select id="ctrl-' + key + '" data-control="' + key + '">' + values.map(v => '<option value="' + v + '" ' +
+      (v === value ? 'selected' : '') + '>' + optionLabel(key,v) + '</option>').join('') + '</select></div>';
+  }
+  return '<div class="slider-group"><div class="slider-label-row"><label class="slider-label" for="ctrl-' + key + '">' + label +
+    '</label><span class="slider-value" id="val-' + key + '">' + (value == null ? '—' : value) + '</span></div>' +
+    '<input type="range" class="has-fill" id="ctrl-' + key + '" min="' + control.min + '" max="' + control.max +
+    '" step="' + (control.step || 1) + '" value="' + (value == null ? control.min : value) + '" data-control="' + key + '"></div>';
+}
+function renderControls() {
+  dom.basicControls.innerHTML = ['volume','mute'].map(buildControl).join('') || '<p class="control-note">Waiting for ' + TARGET_ROOM + '…</p>';
+  const groups = [
+    ['Tone',['bass','treble','loudness']],
+    ['TV & dialogue',['speechEnabled','speechLevel','nightMode','audioDelay']],
+    ['Surround & height',['surroundEnabled','surroundTvLevel','surroundMusicLevel','surroundMode','heightLevel']],
+    ['Subs',['subEnabled','subGain','subPolarity']],
+    ['Room tuning',['trueplay']],
+  ];
+  dom.controlsContent.innerHTML = groups.map(([title,keys]) => {
+    const html = keys.map(buildControl).join('');
+    return html ? '<div class="advanced-group"><h3>' + title + '</h3>' + html + '</div>' : '';
+  }).join('') + '<p class="control-note">Full/Ambient affects ordinary music, not TV or Dolby Atmos. Trueplay uses the existing room calibration.</p>' +
+    '<div class="advanced-group"><h3>Save your sound</h3><p class="control-note">Normal and Music & Movies are saved on this phone and leave volume alone. MAX always sets volume to 100. Mute, TV sync and Trueplay stay separate.</p>' +
+    PRESETS.filter(p => !p.fixed).map(p => '<button type="button" class="advanced-button" data-save="' + p.id + '">Save current sound as ' + p.name + '</button>').join('') +
+    '<button type="button" class="advanced-button" id="resetPresetsBtn">Restore the two default presets</button></div>';
+  [dom.basicControls,dom.controlsContent].forEach(attachControlHandlers);
+  dom.controlsContent.querySelectorAll('[data-save]').forEach(button => button.addEventListener('click',() => saveCurrentToPreset(button.dataset.save)));
+  const reset = document.getElementById('resetPresetsBtn');
+  if (reset) reset.addEventListener('click',() => {
+    if (!confirm('Restore the two default presets on this phone? Speaker settings will stay as they are.')) return;
+    const previous = PRESETS;
+    PRESETS = JSON.parse(JSON.stringify(DEFAULT_PRESETS));
+    try { savePresetsToStorage(); clearActivePreset(); renderPresets(); showToast('Default presets restored','success'); }
+    catch (err) { PRESETS = previous; showToast(err.message,'error'); }
+  });
+  updateStatus();
+}
+function attachControlHandlers(container) {
+  container.querySelectorAll('input[type="range"]').forEach(slider => {
+    slider.addEventListener('input',() => { paintControl(slider.dataset.control,Number(slider.value)); debouncedControlUpdate(slider.dataset.control,Number(slider.value)); });
+    slider.addEventListener('change',() => {
+      const key = slider.dataset.control; clearTimeout(state.debounceTimers[key]); delete state.debounceTimers[key]; delete state.pendingValues[key];
+      applySlider(key,Number(slider.value));
+    });
+  });
+  container.querySelectorAll('input[type="checkbox"],select').forEach(input => input.addEventListener('change',() =>
+    applySlider(input.dataset.control,input.type === 'checkbox' ? input.checked : Number(input.value))));
+}
+function paintControl(key,value) {
+  const slider = document.getElementById('ctrl-' + key); const label = document.getElementById('val-' + key);
+  if (label) label.textContent = value;
+  if (slider && slider.type === 'range') slider.style.setProperty('--fill-percent',((value-Number(slider.min))/(Number(slider.max)-Number(slider.min))*100) + '%');
+}
+function debouncedControlUpdate(key,value) {
+  if (state.applyingPreset) return;
+  ++state.pollGeneration;
+  clearTimeout(state.debounceTimers[key]); state.pendingValues[key] = value;
+  state.debounceTimers[key] = setTimeout(() => {
+    delete state.debounceTimers[key]; delete state.pendingValues[key]; applySlider(key,value);
+  },250);
+}
+async function applySlider(key,value) {
+  if (!state.connected || state.applyingPreset || !validSetting(key,value)) return false;
+  const revision = state.editRevision; clearActivePreset();
+  let applied = false;
+  try {
+    await queueWrite(async () => {
+      if (revision !== state.editRevision) return;
+      const mix = await apiCall(roomPath('mix/' + key + '/' + String(value)));
+      if (revision === state.editRevision) { updateFromMix(mix); applied = true; }
+    });
+    return applied;
+  } catch (err) { showToast('Could not change ' + (LABELS[key] || key) + ': ' + err.message,'error'); updateControlValues(key); return false; }
+}
+function updateControlValues(forceKey) {
+  Object.keys(state.controls).forEach(key => {
+    const input = document.getElementById('ctrl-' + key); if (!input || (input === document.activeElement && key !== forceKey)) return;
+    if (input.type === 'checkbox') input.checked = !!state.current[key];
+    else input.value = state.current[key];
+    paintControl(key,state.current[key]);
+  });
+}
+function toggleControls() {
+  state.controlsOpen = !state.controlsOpen;
+  dom.controlsSection.classList.toggle('open',state.controlsOpen);
+  dom.controlsBody.hidden = !state.controlsOpen;
+  dom.controlsToggle.setAttribute('aria-expanded',String(state.controlsOpen));
+}
+function escapeHtml(value) { return String(value).replace(/[&<>"']/g,c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function showToast(message,type='info') {
+  const toast = document.createElement('div'); toast.className = 'toast ' + type;
+  toast.textContent = message; dom.toastContainer.appendChild(toast);
+  setTimeout(() => { if (toast.parentNode) toast.parentNode.removeChild(toast); },4000);
+  while (dom.toastContainer.children.length > 3) dom.toastContainer.removeChild(dom.toastContainer.firstChild);
+}
+async function init() {
+  document.getElementById('footerRoom').textContent = TARGET_ROOM;
+  renderPresets(); renderControls();
+  dom.controlsToggle.addEventListener('click',toggleControls);
+  await discoverRoom(); startPolling();
+}
+document.addEventListener('visibilitychange',() => {
+  stopPolling();
+  if (!document.hidden) { pollState().finally(startPolling); }
+});
+init();
+</script>
+</body>
+</html>

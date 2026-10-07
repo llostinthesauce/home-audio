@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  cronos:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cronos
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: cronos/package-lock.json
+      - run: npm ci
+      - run: npm test
+
+  music-toolkit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: music-toolkit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt pyflakes
+      - run: python -m compileall -q main
+      - name: No undefined names
+        run: "! python -m pyflakes main | grep -E 'undefined name|syntax error'"

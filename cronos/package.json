@@ -1,0 +1,44 @@
+{
+  "name": "cronos",
+  "version": "1.0.0",
+  "description": "A one-page Sonos home-theater remote with sound presets, built on node-sonos-http-api",
+  "scripts": {
+    "start": "node server.js",
+    "lint": "eslint lib",
+    "test": "node --test test/*.test.cjs"
+  },
+  "author": "llostinthesauce",
+  "contributors": [
+    "Jimmy Shimizu (original node-sonos-http-api)"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/llostinthesauce/home-audio.git",
+    "directory": "cronos"
+  },
+  "dependencies": {
+    "anesidora": "^1.2.0",
+    "aws-sdk": "^2.1299.0",
+    "basic-auth": "~1.1.0",
+    "fuse.js": "^6.4.1",
+    "html-entities": "^1.2.1",
+    "json5": "^0.5.1",
+    "mime": "^1.4.1",
+    "music-metadata": "^1.1.0",
+    "serve-static": "^1.15.0",
+    "request-promise": "~1.0.2",
+    "sonos-discovery": "https://github.com/jishi/node-sonos-discovery/archive/v1.8.0.tar.gz",
+    "wav-file-info": "0.0.8",
+    "elevenlabs-node": "2.0.1"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "main": "lib/sonos-http-api.js",
+  "license": "MIT",
+  "devDependencies": {
+    "eslint": "^4.8.0",
+    "eslint-config-airbnb-base": "^12.0.1",
+    "eslint-plugin-import": "^2.7.0"
+  }
+}
