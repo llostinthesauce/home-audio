@@ -8,6 +8,7 @@ const logger = require('sonos-discovery/lib/helpers/logger');
 const SonosHttpAPI = require('./lib/sonos-http-api.js');
 const serveStatic = require('serve-static');
 const settings = require('./settings');
+const requestGuard = require('./lib/helpers/request-guard');
 
 const serve = new serveStatic(settings.webroot);
 const discovery = new SonosSystem(settings);
@@ -34,11 +35,23 @@ var requestHandler = function (req, res) {
         }
       }
 
-      // Enable CORS requests
-      res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      if (req.headers['access-control-request-headers']) {
-        res.setHeader('Access-Control-Allow-Headers', req.headers['access-control-request-headers']);
+      if (settings.allowCrossSite) {
+        // Opt-in for browser clients served from another origin.
+        res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        if (req.headers['access-control-request-headers']) {
+          res.setHeader('Access-Control-Allow-Headers', req.headers['access-control-request-headers']);
+        }
+      } else {
+        // Every API call is a GET that changes speaker state, so refuse what only
+        // another web page would send. Static UI files are served above, so links
+        // to the UI from other pages still open it.
+        const refused = requestGuard.refusal(req, settings.allowedHosts);
+        if (refused) {
+          res.statusCode = 403;
+          res.end(refused);
+          return;
+        }
       }
 
       if (req.method === 'OPTIONS') {
@@ -69,7 +82,7 @@ if (settings.https) {
   }
 
   const secureServer = https.createServer(options, requestHandler);
-  secureServer.listen(settings.securePort, function () {
+  secureServer.listen(settings.securePort, settings.ip, function () {
     logger.info('https server listening on port', settings.securePort);
   });
 }
