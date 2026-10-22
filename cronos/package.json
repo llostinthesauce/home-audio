@@ -1,6 +1,6 @@
 {
   "name": "cronos",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A one-page Sonos home-theater remote with sound presets, built on node-sonos-http-api",
   "scripts": {
     "start": "node server.js",
