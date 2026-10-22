@@ -6,7 +6,10 @@ const path = require('path');
 const fileDuration = require('../helpers/file-duration');
 const settings = require('../../settings');
 const logger = require('sonos-discovery/lib/helpers/logger');
-var exec = require('child_process').exec;
+var execFile = require('child_process').execFile;
+
+// Voice names as macOS lists them, e.g. "Samantha" or "Ava (Premium)".
+const VOICE_NAME = /^[\w .()'-]{1,64}$/;
 
 function macSay(phrase, voice) {
   if (!settings.macSay) {
@@ -20,6 +23,10 @@ function macSay(phrase, voice) {
   var selectedVoice = settings.macSay.voice;
   if( voice ) {
     selectedVoice = voice;
+  }
+  // The voice comes from the request URL and also names the output file.
+  if (selectedVoice && !VOICE_NAME.test(selectedVoice)) {
+    return Promise.reject(new Error(`invalid voice name: ${selectedVoice}`));
   }
 
   // Construct a filesystem neutral filename
@@ -52,16 +59,19 @@ function macSay(phrase, voice) {
     // System Preferences -> Accessibility -> Speech -> System Voice
     //
 
-    var execCommand = `say "${phrase}" -o ${filepath}`;
-    if( selectedVoice && selcetedRate != "default" ) {
-      execCommand = `say -r ${selcetedRate} -v ${selectedVoice} "${phrase}" -o ${filepath}`;
-    } else if ( selectedVoice ) {
-      execCommand = `say -v ${selectedVoice} "${phrase}" -o ${filepath}`;
-    } else if ( selcetedRate  != "default" ) {
-      execCommand = `say -r ${selcetedRate} "${phrase}" -o ${filepath}`;
+    // execFile hands each argument to `say` as-is, so a phrase or voice from the
+    // request URL never becomes shell syntax; `--` keeps a phrase starting with
+    // "-" from being read as an option.
+    const args = [];
+    if ( selcetedRate != "default" ) {
+      args.push('-r', String(selcetedRate));
     }
+    if ( selectedVoice ) {
+      args.push('-v', selectedVoice);
+    }
+    args.push('-o', filepath, '--', phrase);
 
-    exec(execCommand,
+    execFile('say', args,
       function (error, stdout, stderr) {
         if (error !== null) {
           reject(error);
