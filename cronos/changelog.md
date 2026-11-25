@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.2 (2026-11-25)
+- Security: updated music-metadata to 11.16.1 (crafted-file denial-of-service fixes). It is ESM-only, so the duration helper loads it with a dynamic `import()`.
+- Security: updated request-promise to 4.2.6 and pinned `request`'s form-data to 2.5.6 through an npm override.
+- Updated follow-redirects to 1.16.2.
+
 ## 1.0.1 (2026-10-22)
 - Security: API requests are refused when the Host is not one of the server's own names or addresses (DNS rebinding) or when a browser marks them cross-site. The web UI is still served to links from other pages. `allowedHosts` adds Host names; `allowCrossSite: true` restores the old open CORS behaviour.
 - Security: the macOS `say` provider runs `say` without a shell and validates the voice name, closing a command injection when `macSay` is configured.
